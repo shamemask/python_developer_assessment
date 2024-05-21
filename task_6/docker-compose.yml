@@ -1,0 +1,64 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+  redis:
+    image: redis:latest
+  airflow-init:
+    build:
+      context: .
+    entrypoint: /bin/bash
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__DATABASE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__CORE__FERNET_KEY: 'ecTyKNuL2nEX17QV9PbQBuTnTHpiKJye5Uo__mp4bLQ='
+    depends_on:
+      - postgres
+      - redis
+    command:
+      - -c
+      - airflow db init &&
+        airflow users create
+        --role Admin
+        --username admin
+        --password admin
+        --email airflow@airflow.com
+        --firstname airflow
+        --lastname airflow
+  airflow:
+    build:
+      context: .
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__DATABASE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__CORE__FERNET_KEY: 'ecTyKNuL2nEX17QV9PbQBuTnTHpiKJye5Uo__mp4bLQ='
+    volumes:
+      - ./dags:/opt/airflow/dags
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+      - airflow-init
+    command: webserver
+  airflow_scheduler:
+    build:
+      context: .
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__DATABASE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__CORE__FERNET_KEY: 'ecTyKNuL2nEX17QV9PbQBuTnTHpiKJye5Uo__mp4bLQ='
+    volumes:
+      - ./dags:/opt/airflow/dags
+    depends_on:
+      - postgres
+      - redis
+      - airflow-init
+    command: scheduler
